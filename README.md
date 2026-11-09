@@ -28,28 +28,38 @@ As barras mudam de cor conforme o uso: azul até 49%, amarelo de 50% a 79% e ver
 
 Pré-requisito: ter o **Claude Code** instalado ([como instalar](https://docs.claude.com/pt/docs/claude-code)).
 
-Abra o **PowerShell** e rode:
+1. Clone o repositório e entre na pasta:
 
-```powershell
-irm https://raw.githubusercontent.com/reissbruno/claude-limits/main/instalar.ps1 | iex
+```bash
+git clone https://github.com/reissbruno/claude-limits.git
+```
+
+```bash
+cd claude-limits
+```
+
+2. Rode **um comando**, no PowerShell ou no Prompt de Comando:
+
+```bash
+.\instalar.cmd
 ```
 
 Esse comando faz tudo sozinho:
 
 1. Confere se o Claude Code está instalado.
 2. **Faz o login**, se você ainda não estiver logado: o navegador abre, você entra na sua conta Claude e autoriza.
-3. Baixa o app para `%LOCALAPPDATA%\ClaudeLimits`.
+3. Instala o app em `%LOCALAPPDATA%\ClaudeLimits`.
 4. Configura para abrir **junto com o Windows**.
 5. Abre o app e **fixa o ícone ao lado do relógio**, fora da setinha `^`.
 
 ![Instalador rodando no terminal](docs/instalador.png)
 
-**Para atualizar**, rode o mesmo comando de novo.
+**Para atualizar**, entre na pasta, rode `git pull` e depois rode `.\instalar.cmd` de novo.
 
-**Para remover**, rode o comando abaixo. Ele fecha o app, apaga o `.exe` e tira o app da inicialização do Windows. O seu login do Claude Code continua como estava.
+**Para remover**, rode o comando abaixo, dentro da pasta. Ele fecha o app, apaga o `.exe` e tira o app da inicialização do Windows. O seu login do Claude Code continua como estava.
 
-```powershell
-irm https://raw.githubusercontent.com/reissbruno/claude-limits/main/desinstalar.ps1 | iex
+```bash
+.\desinstalar.cmd
 ```
 
 ## Como usar
@@ -88,8 +98,8 @@ Arquivos do projeto:
 
 - `claude_limits.pyw`: código do app (Python, com `pystray` e `Pillow`).
 - `claude-code.svg`: ícone do boneco, usado no painel e no `.exe`.
-- `bin/ClaudeLimits.exe`: o app pronto. É ele que o comando de instalação baixa.
-- `instalar.ps1` e `desinstalar.ps1`: o instalador e o desinstalador, que rodam pelo `irm | iex` ou localmente. Os arquivos `.cmd` ao lado só chamam os `.ps1`.
+- `bin/ClaudeLimits.exe`: o app pronto. É ele que o `instalar.cmd` instala.
+- `instalar.cmd` e `desinstalar.cmd`: os comandos que o usuário roda. Eles só chamam o `instalar.ps1` e o `desinstalar.ps1`, que fazem o trabalho.
 - `docs/`: as imagens deste README e o `app.ico`.
 
 Para rodar sem gerar o `.exe`:
@@ -108,4 +118,4 @@ Para gerar uma versão nova do `.exe` em `bin\`:
 python -m PyInstaller --noconfirm --onefile --windowed --name ClaudeLimits --icon docs/app.ico --add-data "claude-code.svg;." --distpath bin claude_limits.pyw
 ```
 
-Depois faça commit e push do `bin/ClaudeLimits.exe`. Na próxima vez que alguém rodar o comando de instalação, recebe a versão nova.
+Depois faça commit e push do `bin/ClaudeLimits.exe`. A equipe recebe a versão nova com `git pull` e `.\instalar.cmd`.

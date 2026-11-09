@@ -1,7 +1,7 @@
 ﻿# Remove o Claude Limits: fecha o app, apaga o .exe instalado e tira da inicialização.
 # O login do Claude Code NÃO é mexido.
 #
-#   irm https://raw.githubusercontent.com/reissbruno/claude-limits/main/desinstalar.ps1 | iex
+#   .\desinstalar.cmd   (na pasta do repositório)
 
 & {
 function Passo($texto) { Write-Host ''; Write-Host "==> $texto" -ForegroundColor Cyan }

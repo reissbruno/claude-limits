@@ -1,14 +1,14 @@
-﻿# Instalador do Claude Limits: um comando faz tudo.
+﻿# Instalador do Claude Limits: um comando faz tudo. Na pasta do repositório clonado:
 #
-#   irm https://raw.githubusercontent.com/reissbruno/claude-limits/main/instalar.ps1 | iex
+#   .\instalar.cmd
 #
 #   1. confere se o Claude Code está instalado
 #   2. faz o login (abre o navegador) se ainda não houver
-#   3. baixa o ClaudeLimits.exe para %LOCALAPPDATA%\ClaudeLimits
+#   3. instala o bin\ClaudeLimits.exe em %LOCALAPPDATA%\ClaudeLimits
 #   4. configura para abrir junto com o Windows
 #   5. abre o app e deixa o ícone sempre visível ao lado do relógio
 #
-# Também funciona rodando o arquivo local (instalar.cmd) numa pasta com o ClaudeLimits.exe.
+# Se o bin\ClaudeLimits.exe não estiver na pasta, baixa do GitHub.
 
 & {
 $ErrorActionPreference = 'Stop'
