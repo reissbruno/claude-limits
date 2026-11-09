@@ -135,9 +135,10 @@ try {
     Start-Process $exe
 
     # O Windows cria a entrada do ícone alguns segundos depois de o app abrir
-    $chave = 'HKCU:\Control Panel\NotifyIconSettings'
+    $chave = 'HKCU:\Control Panel\NotifyIconSettings'   # só existe no Windows 11
+    $windows11 = [Environment]::OSVersion.Version.Build -ge 22000
     $promovido = $false
-    for ($i = 0; $i -lt 30 -and -not $promovido; $i++) {
+    for ($i = 0; $windows11 -and $i -lt 30 -and -not $promovido; $i++) {
         Start-Sleep -Seconds 1
         if (-not (Test-Path $chave)) { continue }
         Get-ChildItem $chave | ForEach-Object {
@@ -155,6 +156,10 @@ try {
         Start-Sleep -Milliseconds 800
         Start-Process $exe
         Write-Host 'Ícone fixado ao lado do relógio.'
+    } elseif (-not $windows11) {
+        # No Windows 10 a escolha fica num registro binário que não dá para editar com segurança
+        Write-Host 'Para deixar o ícone sempre visível no Windows 10: clique na setinha ^ ao lado do relógio e arraste o boneco para a barra.' -ForegroundColor Yellow
+        Write-Host '(ou: Configurações > Personalização > Barra de tarefas > Selecione quais ícones aparecem > ative ClaudeLimits)' -ForegroundColor Yellow
     } else {
         Write-Host 'Não consegui fixar o ícone sozinho. Se ele estiver escondido na setinha ^, arraste-o para a barra.' -ForegroundColor Yellow
     }

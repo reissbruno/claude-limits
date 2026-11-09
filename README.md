@@ -84,7 +84,9 @@ Esse comando faz tudo sozinho:
 
 ## Problemas comuns
 
-- **O ícone ficou escondido na setinha `^`.** Arraste-o para a barra. Outra opção: em Configurações → Personalização → Barra de tarefas → Outros ícones da bandeja do sistema, ative **ClaudeLimits**.
+- **O ícone ficou escondido na setinha `^`.** Arraste-o para a barra. No **Windows 10** o instalador não consegue fixar o ícone sozinho, então esse passo é sempre manual. Outra opção é ativar o **ClaudeLimits** nas Configurações:
+  - Windows 11: Personalização → Barra de tarefas → Outros ícones da bandeja do sistema.
+  - Windows 10: Personalização → Barra de tarefas → Selecione quais ícones aparecem na barra de tarefas.
 - **O antivírus reclamou do `.exe`.** Isso acontece porque o arquivo não tem assinatura digital. Libere o `ClaudeLimits.exe`.
 - **Aparece "Sem login no Claude Code".** Rode `claude auth login` no terminal, ou use **Trocar de conta**.
 
