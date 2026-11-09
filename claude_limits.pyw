@@ -574,14 +574,33 @@ class App:
     def request_refresh(self):
         self.wake.set()
 
+    @staticmethod
+    def find_claude():
+        """Acha o executável do Claude Code: PATH, instalador oficial ou extensão do VS Code/Cursor."""
+        import glob
+        import shutil
+        found = shutil.which("claude")
+        if found:
+            return found
+        home = os.path.expanduser("~")
+        native = os.path.join(home, ".local", "bin", "claude.exe")
+        if os.path.exists(native):
+            return native
+        candidates = []
+        for ext in (".vscode", ".vscode-insiders", ".cursor"):
+            candidates += glob.glob(os.path.join(home, ext, "extensions", "anthropic.claude-code-*",
+                                                 "resources", "native-binary", "claude.exe"))
+        return max(candidates, key=os.path.getmtime) if candidates else "claude"
+
     def login(self, switch=False):
         """Abre o login do Claude Code numa janela de terminal.
         Com switch=True, sai da conta atual antes, para dar para entrar com outra."""
+        claude = f'"{self.find_claude()}"'
         lines = ["@echo off", "chcp 65001 >nul", "title Claude Limits - login"]
         if switch:
             lines += [
                 "echo Saindo da conta atual do Claude Code...",
-                "call claude auth logout",
+                f"call {claude} auth logout",
                 "echo.",
                 "echo ============================================================",
                 "echo  Para entrar com OUTRA conta:",
@@ -594,7 +613,7 @@ class App:
                 "echo.",
             ]
         lines += [
-            "call claude auth login --claudeai",
+            f"call {claude} auth login --claudeai",
             "echo.",
             "echo Pode fechar esta janela.",
             "pause >nul",

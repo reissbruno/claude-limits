@@ -26,7 +26,7 @@ As barras mudam de cor conforme o uso: azul até 49%, amarelo de 50% a 79% e ver
 
 ## Instalação: um comando
 
-Pré-requisito: ter o **Claude Code** instalado ([como instalar](https://docs.claude.com/pt/docs/claude-code)).
+Não precisa instalar nada antes: se o **Claude Code** não estiver na máquina, o instalador instala.
 
 1. Clone o repositório e entre na pasta:
 
@@ -46,7 +46,7 @@ cd claude-limits
 
 Esse comando faz tudo sozinho:
 
-1. Confere se o Claude Code está instalado.
+1. Procura o Claude Code: no terminal ou dentro da extensão do VS Code ou do Cursor. **Se não achar, instala** pelo instalador oficial da Anthropic e coloca o comando `claude` no PATH.
 2. **Faz o login**, se você ainda não estiver logado: o navegador abre, você entra na sua conta Claude e autoriza.
 3. Instala o app em `%LOCALAPPDATA%\ClaudeLimits`.
 4. Configura para abrir **junto com o Windows**.

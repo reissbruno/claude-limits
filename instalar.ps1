@@ -2,7 +2,8 @@
 #
 #   .\instalar.cmd
 #
-#   1. confere se o Claude Code está instalado
+#   1. acha o Claude Code (terminal, VS Code ou Cursor); se não houver, instala
+#      pelo instalador oficial da Anthropic
 #   2. faz o login (abre o navegador) se ainda não houver
 #   3. instala o bin\ClaudeLimits.exe em %LOCALAPPDATA%\ClaudeLimits
 #   4. configura para abrir junto com o Windows
@@ -16,34 +17,78 @@ $ProgressPreference = 'SilentlyContinue'   # download bem mais rápido no PowerS
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $ExeUrl = 'https://github.com/reissbruno/claude-limits/raw/main/bin/ClaudeLimits.exe'
+$ClaudeInstallerUrl = 'https://claude.ai/install.ps1'   # instalador oficial do Claude Code
+$Credenciais = Join-Path $env:USERPROFILE '.claude\.credentials.json'
 
 function Passo($texto) { Write-Host ''; Write-Host "==> $texto" -ForegroundColor Cyan }
 
-function Status-Login {
+function Achar-Claude {
+    # 1) no PATH (instalado pelo terminal)
+    $cmd = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) { return $cmd.Source }
+    # 2) instalador oficial, mesmo que o PATH ainda não tenha sido atualizado
+    $nativo = Join-Path $env:USERPROFILE '.local\bin\claude.exe'
+    if (Test-Path $nativo) { return $nativo }
+    # 3) o executável que vem dentro da extensão do VS Code / Cursor (a versão mais nova)
+    $achados = foreach ($d in "$env:USERPROFILE\.vscode\extensions", "$env:USERPROFILE\.vscode-insiders\extensions", "$env:USERPROFILE\.cursor\extensions") {
+        if (Test-Path $d) {
+            Get-ChildItem $d -Directory -Filter 'anthropic.claude-code-*' -ErrorAction SilentlyContinue |
+                ForEach-Object { Join-Path $_.FullName 'resources\native-binary\claude.exe' } |
+                Where-Object { Test-Path $_ } | ForEach-Object { Get-Item $_ }
+        }
+    }
+    $maisNovo = $achados | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($maisNovo) { return $maisNovo.FullName }
+    return $null
+}
+
+function Status-Login($claude) {
     try {
-        $json = (& claude auth status --json 2>$null) | Out-String
+        $json = (& $claude auth status --json 2>$null) | Out-String
         return $json | ConvertFrom-Json
     } catch { return $null }
 }
 
+function Logado($st) { return $st -and $st.loggedIn -and $st.authMethod -eq 'claude.ai' }
+
 try {
     # ------------------------------------------------------------ 1. Claude Code
     Passo 'Conferindo o Claude Code'
-    if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
-        throw 'Claude Code não encontrado. Instale primeiro (https://docs.claude.com/pt/docs/claude-code) e rode este comando de novo.'
+    $claude = Achar-Claude
+    if (-not $claude) {
+        Write-Host 'Claude Code não encontrado. Instalando pelo instalador oficial da Anthropic...' -ForegroundColor Yellow
+        # Roda num PowerShell separado: assim nada do instalador interfere neste script
+        & powershell -NoProfile -ExecutionPolicy Bypass -Command "irm '$ClaudeInstallerUrl' | iex"
+        # O instalador põe o claude em ~\.local\bin, mas nem sempre o coloca no PATH:
+        # acrescenta no PATH do usuário (terminais futuros) e neste terminal
+        $bin = Join-Path $env:USERPROFILE '.local\bin'
+        $pathUsuario = [Environment]::GetEnvironmentVariable('Path', 'User')
+        if (($pathUsuario -split ';') -notcontains $bin) {
+            [Environment]::SetEnvironmentVariable('Path', (($pathUsuario.TrimEnd(';') + ";$bin").TrimStart(';')), 'User')
+        }
+        if ($env:Path -notlike "*$bin*") { $env:Path = "$bin;$env:Path" }
+        $claude = Achar-Claude
+        if (-not $claude) {
+            throw 'Não consegui instalar o Claude Code. Instale manualmente (https://docs.claude.com/pt/docs/claude-code) e rode este comando de novo.'
+        }
+        Write-Host 'Claude Code instalado.'
+    } else {
+        Write-Host "Claude Code encontrado: $claude"
     }
-    Write-Host 'Claude Code encontrado.'
 
     # ------------------------------------------------------------ 2. Login
     Passo 'Conferindo o login'
-    $st = Status-Login
-    if (-not $st -or -not $st.loggedIn -or $st.authMethod -ne 'claude.ai') {
+    $st = Status-Login $claude
+    if (-not (Logado $st)) {
         Write-Host 'Vamos fazer o login na sua conta Claude. O navegador vai abrir: entre e autorize.' -ForegroundColor Yellow
-        & claude auth login --claudeai
-        $st = Status-Login
-        if (-not $st -or -not $st.loggedIn -or $st.authMethod -ne 'claude.ai') {
+        & $claude auth login --claudeai
+        $st = Status-Login $claude
+        if (-not (Logado $st)) {
             throw 'O login não foi concluído. Rode o comando de novo.'
         }
+    }
+    if (-not (Test-Path $Credenciais)) {
+        throw "O login foi feito, mas o arquivo $Credenciais não apareceu. Rode o comando de novo."
     }
     Write-Host "Logado como $($st.email)."
 
