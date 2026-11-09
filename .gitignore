@@ -219,6 +219,3 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Claude Limits
-ClaudeLimits-instalador.zip
-claude_icon.png

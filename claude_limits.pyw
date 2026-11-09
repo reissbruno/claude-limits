@@ -18,7 +18,7 @@ import urllib.request
 from datetime import datetime, timedelta
 
 import pystray
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 APP_NAME = "Claude Limits"
 CREDENTIALS = os.path.join(os.path.expanduser("~"), ".claude", ".credentials.json")
@@ -163,20 +163,9 @@ def level(pct):
 
 # ---------------------------------------------------------------- ícone
 
-def load_font(size):
-    for name in ("segoeuib.ttf", "arialbd.ttf"):
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
-
-
 FROZEN = getattr(sys, "frozen", False)  # rodando como .exe (PyInstaller)
 HERE = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 SVG_FILE = os.path.join(HERE, "claude-code.svg")
-LOGO_FILE = os.path.join(HERE, "claude_icon.png")
-_logo_cache = []
 
 
 def render_pixel_svg(path, size):
@@ -314,18 +303,6 @@ def install_crisp_tray_loader():
                 pass
 
     _win32.Icon._assert_icon_handle = _assert_icon_handle
-
-
-def draw_icon(text, color_key):
-    size = 64
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, size - 1, size - 1), radius=14, fill=ICON_COLORS[color_key])
-    font = load_font(44 if len(text) <= 2 else 32)
-    box = d.textbbox((0, 0), text, font=font)
-    w, h = box[2] - box[0], box[3] - box[1]
-    d.text(((size - w) / 2 - box[0], (size - h) / 2 - box[1]), text, font=font, fill="white")
-    return img
 
 
 # ---------------------------------------------------------------- painel
