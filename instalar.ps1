@@ -28,6 +28,7 @@ function Achar-Claude {
     if ($cmd) { return $cmd.Source }
     # 2) instalador oficial, mesmo que o PATH ainda não tenha sido atualizado
     $nativo = Join-Path $env:USERPROFILE '.local\bin\claude.exe'
+    # (o instalador oficial pode não ter colocado ~\.local\bin no PATH ainda)
     if (Test-Path $nativo) { return $nativo }
     # 3) o executável que vem dentro da extensão do VS Code / Cursor (a versão mais nova)
     $achados = foreach ($d in "$env:USERPROFILE\.vscode\extensions", "$env:USERPROFILE\.vscode-insiders\extensions", "$env:USERPROFILE\.cursor\extensions") {
@@ -59,14 +60,6 @@ try {
         Write-Host 'Claude Code não encontrado. Instalando pelo instalador oficial da Anthropic...' -ForegroundColor Yellow
         # Roda num PowerShell separado: assim nada do instalador interfere neste script
         & powershell -NoProfile -ExecutionPolicy Bypass -Command "irm '$ClaudeInstallerUrl' | iex"
-        # O instalador põe o claude em ~\.local\bin, mas nem sempre o coloca no PATH:
-        # acrescenta no PATH do usuário (terminais futuros) e neste terminal
-        $bin = Join-Path $env:USERPROFILE '.local\bin'
-        $pathUsuario = [Environment]::GetEnvironmentVariable('Path', 'User')
-        if (($pathUsuario -split ';') -notcontains $bin) {
-            [Environment]::SetEnvironmentVariable('Path', (($pathUsuario.TrimEnd(';') + ";$bin").TrimStart(';')), 'User')
-        }
-        if ($env:Path -notlike "*$bin*") { $env:Path = "$bin;$env:Path" }
         $claude = Achar-Claude
         if (-not $claude) {
             throw 'Não consegui instalar o Claude Code. Instale manualmente (https://docs.claude.com/pt/docs/claude-code) e rode este comando de novo.'
@@ -74,6 +67,16 @@ try {
         Write-Host 'Claude Code instalado.'
     } else {
         Write-Host "Claude Code encontrado: $claude"
+    }
+    # O instalador oficial põe o claude em ~\.local\bin, mas nem sempre o coloca no PATH:
+    # acrescenta no PATH do usuário, para o comando "claude" funcionar nos próximos terminais
+    $bin = Join-Path $env:USERPROFILE '.local\bin'
+    if ($claude -like "$bin\*") {
+        $pathUsuario = [Environment]::GetEnvironmentVariable('Path', 'User')
+        if (($pathUsuario -split ';') -notcontains $bin) {
+            [Environment]::SetEnvironmentVariable('Path', (("$pathUsuario".TrimEnd(';') + ";$bin").TrimStart(';')), 'User')
+            Write-Host "Adicionei $bin ao PATH (vale nos próximos terminais)."
+        }
     }
 
     # ------------------------------------------------------------ 2. Login
