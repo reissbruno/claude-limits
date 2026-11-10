@@ -563,6 +563,13 @@ def send_to_console(pid, text):
         hin = k32.CreateFileW("CONIN$", 0xC0000000, 3, None, 3, 0, None)
         if hin in (None, wintypes.HANDLE(-1).value):
             return False
+        # Mostra o código também na tela da janela do login, para dar para conferir
+        hout = k32.CreateFileW("CONOUT$", 0xC0000000, 3, None, 3, 0, None)
+        if hout not in (None, wintypes.HANDLE(-1).value):
+            shown = wintypes.DWORD()
+            line = "\r\n[código colado pelo app] " + text + "\r\n"
+            k32.WriteConsoleW(wintypes.HANDLE(hout), line, len(line), ctypes.byref(shown), None)
+            k32.CloseHandle(wintypes.HANDLE(hout))
         written = wintypes.DWORD()
         ok = k32.WriteConsoleInputW(wintypes.HANDLE(hin), recs, len(recs), ctypes.byref(written))
         k32.CloseHandle(wintypes.HANDLE(hin))
