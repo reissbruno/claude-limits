@@ -80,6 +80,7 @@ Esse comando faz tudo sozinho:
   - Para entrar com outra conta, use **Trocar de conta**, no menu ou no rodapé do painel.
     - Primeiro ele sai da conta atual do **Claude Code**: a conta do app e a do Claude Code são a mesma.
     - Depois abre o login. Se o navegador entrar direto na conta antiga, saia dela no claude.ai, ou abra o link do terminal numa janela anônima (Ctrl+Shift+N).
+    - Se o navegador mostrar um **código**, cole na caixinha **Colar código do login**, que abre junto com a janela do login, e clique em Enviar. Colar direto na janela preta nem sempre funciona.
 - Os números são **da sua conta**: incluem o uso do Claude Code em qualquer lugar onde você estiver logado.
 
 ## Problemas comuns
