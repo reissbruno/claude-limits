@@ -528,6 +528,107 @@ class Panel:
         return b
 
 
+# ---------------------------------------------------------------- código do login
+
+def send_to_console(pid, text):
+    """Digita `text` + Enter no console do processo `pid`, como se fosse o teclado.
+
+    Colar (Ctrl+V / botão direito) nem sempre funciona na janela do login do Claude
+    Code; teclas enviadas assim funcionam em qualquer console."""
+    from ctypes import wintypes
+
+    class KEY_EVENT_RECORD(ctypes.Structure):
+        _fields_ = [("bKeyDown", wintypes.BOOL), ("wRepeatCount", wintypes.WORD),
+                    ("wVirtualKeyCode", wintypes.WORD), ("wVirtualScanCode", wintypes.WORD),
+                    ("uChar", wintypes.WCHAR), ("dwControlKeyState", wintypes.DWORD)]
+
+    class INPUT_RECORD(ctypes.Structure):
+        class _U(ctypes.Union):
+            _fields_ = [("KeyEvent", KEY_EVENT_RECORD), ("pad", ctypes.c_byte * 16)]
+        _fields_ = [("EventType", wintypes.WORD), ("Event", _U)]
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateFileW.restype = wintypes.HANDLE
+    keys = [(ch, 0) for ch in text] + [("\r", 0x0D)]  # 0x0D = VK_RETURN
+    recs = (INPUT_RECORD * (len(keys) * 2))()
+    for i, (ch, vk) in enumerate(keys):
+        for j, down in enumerate((1, 0)):
+            recs[i * 2 + j].EventType = 1  # KEY_EVENT
+            recs[i * 2 + j].Event.KeyEvent = KEY_EVENT_RECORD(down, 1, vk, 0, ch, 0)
+
+    k32.FreeConsole()
+    if not k32.AttachConsole(pid):
+        return False
+    try:
+        hin = k32.CreateFileW("CONIN$", 0xC0000000, 3, None, 3, 0, None)
+        if hin in (None, wintypes.HANDLE(-1).value):
+            return False
+        written = wintypes.DWORD()
+        ok = k32.WriteConsoleInputW(wintypes.HANDLE(hin), recs, len(recs), ctypes.byref(written))
+        k32.CloseHandle(wintypes.HANDLE(hin))
+        return bool(ok) and written.value == len(recs)
+    finally:
+        k32.FreeConsole()  # solta logo: fechar aquela janela não pode derrubar o app
+
+
+class CodeDialog:
+    """Caixinha para colar o código que o navegador mostra no login manual."""
+
+    def __init__(self, app):
+        self.app = app
+        self.win = None
+        self.proc = None
+
+    def open(self, proc):
+        self.close()
+        self.proc = proc
+        root = self.app.root
+        self.win = win = tk.Toplevel(root, bg=BG, padx=18, pady=14)
+        win.title("Colar código do login")
+        win.attributes("-topmost", True)
+        win.resizable(False, False)
+        win.protocol("WM_DELETE_WINDOW", self.close)
+        tk.Label(win, text="O navegador mostrou um código?", bg=BG, fg=FG,
+                 font=("Segoe UI Semibold", 11), anchor="w").pack(fill="x")
+        tk.Label(win, text="Cole aqui (Ctrl+V) e clique em Enviar. Se o navegador só disse\n"
+                           "que deu certo, sem código, pode fechar esta caixinha.",
+                 bg=BG, fg=MUTED, font=("Segoe UI", 9), justify="left", anchor="w").pack(fill="x", pady=(2, 10))
+        row = tk.Frame(win, bg=BG)
+        row.pack(fill="x")
+        self.entry = tk.Entry(row, width=46, font=("Consolas", 10), bg=TRACK, fg=FG,
+                              insertbackground=FG, relief="flat")
+        self.entry.pack(side="left", ipady=5)
+        self.entry.bind("<Return>", lambda _: self.send())
+        tk.Button(row, text="Enviar", command=self.send, bg=BAR, fg="white", relief="flat",
+                  activebackground=BAR, activeforeground="white", padx=12,
+                  font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
+        self.status = tk.Label(win, text="", bg=BG, fg=MUTED, font=("Segoe UI", 9), anchor="w")
+        self.status.pack(fill="x", pady=(8, 0))
+        # Canto inferior direito, acima do relógio
+        win.update_idletasks()
+        l, t, r, b = work_area()
+        win.geometry(f"+{r - win.winfo_reqwidth() - 24}+{b - win.winfo_reqheight() - 60}")
+
+    def send(self):
+        code = self.entry.get().strip()
+        if not code:
+            return
+        if self.proc is None or self.proc.poll() is not None:
+            self.status.configure(text="A janela do login já foi fechada. Clique em Trocar de conta de novo.",
+                                  fg=BAR_WARN)
+            return
+        if send_to_console(self.proc.pid, code):
+            self.entry.delete(0, "end")
+            self.status.configure(text="Código enviado. Aguarde a janela do login confirmar.", fg=MUTED)
+        else:
+            self.status.configure(text="Não consegui enviar para a janela do login.", fg=BAR_WARN)
+
+    def close(self):
+        if self.win:
+            self.win.destroy()
+            self.win = None
+
+
 # ---------------------------------------------------------------- app
 
 class App:
@@ -543,6 +644,7 @@ class App:
         self.root = tk.Tk()
         self.root.withdraw()
         self.panel = Panel(self)
+        self.code_dialog = CodeDialog(self)
         self.icon = pystray.Icon(APP_NAME, draw_tray_icon(None, "off"), APP_NAME, menu=self.build_menu())
 
     # -- comunicação com a thread da interface
@@ -609,6 +711,8 @@ class App:
                 "echo   - saia da conta no claude.ai e tente de novo, ou",
                 "echo   - copie o link que vai aparecer abaixo e abra numa",
                 "echo     janela anônima (Ctrl+Shift+N).",
+                "echo  Se o navegador mostrar um CÓDIGO, cole na caixinha",
+                'echo  "Colar código do login" que abriu junto com esta janela.',
                 "echo ============================================================",
                 "echo.",
             ]
@@ -623,29 +727,36 @@ class App:
         fd, path = tempfile.mkstemp(suffix=".cmd", prefix="claude-limits-login-")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")  # modo texto no Windows já grava \r\n
-        subprocess.Popen(["cmd", "/c", path], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        threading.Thread(target=self._refresh_after_login, args=(path,), daemon=True).start()
+        proc = subprocess.Popen(["cmd", "/c", path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        self.ui(lambda: self.code_dialog.open(proc))
+        threading.Thread(target=self._refresh_after_login, args=(proc,), daemon=True).start()
 
     def switch_account(self):
         self.login(switch=True)
 
-    def _refresh_after_login(self, script):
+    def _refresh_after_login(self, proc):
         self._asked_login = True  # não abrir outro login sozinho enquanto este está aberto
         try:
             start = os.path.getmtime(CREDENTIALS)
         except OSError:
             start = 0
-        for _ in range(300):  # até ~10 min esperando o login novo ser gravado
-            if self.stop.wait(2):
-                return
-            try:
-                # Só conta quando o arquivo existe de novo (o logout o apaga)
-                if os.path.getmtime(CREDENTIALS) != start:
-                    self.stop.wait(1)
+        try:
+            for _ in range(300):  # até ~10 min esperando o login novo ser gravado
+                if self.stop.wait(2):
+                    return
+                if proc.poll() is not None:  # a janela do login foi fechada
                     self.wake.set()
                     return
-            except OSError:
-                pass
+                try:
+                    # Só conta quando o arquivo existe de novo (o logout o apaga)
+                    if os.path.getmtime(CREDENTIALS) != start:
+                        self.stop.wait(1)
+                        self.wake.set()
+                        return
+                except OSError:
+                    pass
+        finally:
+            self.ui(self.code_dialog.close)
 
     def toggle_startup(self):
         if os.path.exists(STARTUP_FILE):
