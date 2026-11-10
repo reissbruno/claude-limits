@@ -697,6 +697,11 @@ class App:
     def login(self, switch=False):
         """Abre o login do Claude Code numa janela de terminal.
         Com switch=True, sai da conta atual antes, para dar para entrar com outra."""
+        # Já tem uma janela de login aberta? Reaproveita, em vez de abrir outra.
+        running = getattr(self, "_login_proc", None)
+        if running is not None and running.poll() is None:
+            self.ui(lambda: self.code_dialog.open(running))
+            return
         claude = f'"{self.find_claude()}"'
         lines = ["@echo off", "chcp 65001 >nul", "title Claude Limits - login"]
         if switch:
@@ -728,6 +733,7 @@ class App:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")  # modo texto no Windows já grava \r\n
         proc = subprocess.Popen(["cmd", "/c", path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        self._login_proc = proc
         self.ui(lambda: self.code_dialog.open(proc))
         threading.Thread(target=self._refresh_after_login, args=(proc,), daemon=True).start()
 
